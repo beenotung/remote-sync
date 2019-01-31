@@ -5,26 +5,14 @@ import {Msg, MsgType, ProvideFileMsg, RequestFileMsg} from "./types";
 import {SyncScanner} from "../core/sync-scanner";
 import * as fs from "fs";
 import {makeFilePath} from "../core/utils";
-import {SyncDir, SyncFile} from "../core/types";
-import {replaceRootPath, splitFilepath} from "../utils/path";
+import {SyncFile} from "../core/types";
 import {pfs} from "../utils/scanner";
 import {fsTaskPool} from "../utils/values";
+import {plan} from "../core/sync-planner";
 
-function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPaths: string[], localRootPaths: string[] }): SyncFile {
-  let {remoteFile} = args;
-  let localFile = Object.assign({}, remoteFile);
-  // console.error(inspect({args, localFile}, {depth: 99}));
-  localFile.dirs = replaceRootPath({
-    filepaths: remoteFile.dirs,
-    localpaths: args.localRootPaths,
-    remotepaths: args.remoteRootPaths
-  });
-  // console.error(inspect({args, localFile}, {depth: 99}));
-  return localFile;
-}
 
 export class SyncClient extends SyncSocket {
-  pendingFileRequests = new Map<string, RequestFileMsg>();
+  // pendingFileRequests = new Map<string, RequestFileMsg>();
   pendingFiles = new Map<string, SyncFile[]>();
 
   msgIdCounter = 0;
@@ -41,32 +29,14 @@ export class SyncClient extends SyncSocket {
     switch (msg.type) {
       case MsgType.root_list: {
         // console.log('received root list:', msg.rootDir);
-        // TODO calc minimal transfer and edit path, then request files
-        let remoteRootDir = msg.rootDir;
-        let localRootDir = this.scanner.getRootDir();
-        let f = (remoteDir: SyncDir) => {
-          remoteDir.files.forEach(remoteFile => {
-            this.msgIdCounter++;
-            let localFile = remoteFileToLocalFile({
-              remoteFile,
-              localRootPaths: splitFilepath(this.scanner.rootpath),
-              remoteRootPaths: msg.rootpath,
-            });
-            this.sendFileRequest({
-              type: MsgType.request_file,
-              id: this.msgIdCounter.toString(16),
-              by: "path",
-              dirs: remoteFile.dirs,
-              name: remoteFile.name,
-            }, [localFile])
-          });
-          remoteDir.subDirs.forEach(dir => f(dir));
-        };
-        f(remoteRootDir);
+        await plan(this, this.scanner, msg);
+        this.checkAllDone();
         break;
       }
       case MsgType.provide_file: {
         await this.receiveFile(msg);
+        this.pendingFiles.delete(msg.reqId);
+        this.checkAllDone();
         break
       }
       default:
@@ -74,9 +44,30 @@ export class SyncClient extends SyncSocket {
     }
   }
 
+  requestFileByHex(name: 'crc32Hex' | 'sha256Hex', hex: string, localFiles: SyncFile[]) {
+    this.msgIdCounter++;
+    this.sendFileRequest({
+      type: MsgType.request_file,
+      id: this.msgIdCounter.toString(16),
+      by: name,
+      hex,
+    }, localFiles)
+  }
+
+  requestFileByPath(dirs: string[], name: string, localFiles: SyncFile[]) {
+    this.msgIdCounter++;
+    this.sendFileRequest({
+      type: MsgType.request_file,
+      id: this.msgIdCounter.toString(16),
+      by: "path",
+      dirs,
+      name,
+    }, localFiles)
+  }
+
   sendFileRequest(msg: RequestFileMsg, files: SyncFile[]) {
     // console.log('request file:', msg);
-    this.pendingFileRequests.set(msg.id, msg);
+    // this.pendingFileRequests.set(msg.id, msg);
     this.pendingFiles.set(msg.id, files);
     this.sendMsg(msg)
   }
@@ -114,5 +105,13 @@ export class SyncClient extends SyncSocket {
           })
       }
     ));
+  }
+
+  checkAllDone() {
+    if (this.pendingFiles.size === 0) {
+      console.log('all files are downloaded');
+      // TODO check to delete extra files
+      this.server.end();
+    }
   }
 }

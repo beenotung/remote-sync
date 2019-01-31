@@ -25,12 +25,26 @@ export function splitFilepath(filepath: string): string[] {
   }
 }
 
-export function replaceRootPath(args: { filepaths: string[], localpaths: string[], remotepaths: string[] }): string[] {
-  let {filepaths, localpaths, remotepaths} = args;
-  if (remotepaths.every((p, i) => filepaths[i] === p)) {
-    let relativepaths = filepaths.slice(remotepaths.length);
-    return [...localpaths, ...relativepaths]
+export function sameRemotePathLocalPath(args: { localFilePaths: string[], remoteFilePaths: string[], localRootPaths: string[], remoteRootPaths: string[] }): boolean {
+  let {remoteFilePaths, localRootPaths, remoteRootPaths, localFilePaths} = args;
+  let remoteIsRelative = remoteRootPaths.every((p, i) => remoteFilePaths[i] === p);
+  let localIsRelative = localRootPaths.every((p, i) => localFilePaths[i] === p);
+  if (remoteIsRelative && localIsRelative) {
+    let remoteRelativePath = remoteFilePaths.slice(remoteRootPaths.length);
+    let localRelativePath = localFilePaths.slice(localRootPaths.length);
+    return remoteRelativePath.length === localRelativePath.length && remoteRelativePath.every((p, i) => localRelativePath[i] === p);
+  }
+  console.error('why?');
+  process.exit(1);
+  return false;
+}
+
+export function replaceRemotePathToLocalPath(args: { remoteFilePaths: string[], localRootPaths: string[], remoteRootPaths: string[] }): string[] {
+  let {remoteFilePaths, localRootPaths, remoteRootPaths} = args;
+  if (remoteRootPaths.every((p, i) => remoteFilePaths[i] === p)) {
+    let relativePaths = remoteFilePaths.slice(remoteRootPaths.length);
+    return [...localRootPaths, ...relativePaths]
   } else {
-    return [...filepaths]
+    return [...remoteFilePaths]
   }
 }

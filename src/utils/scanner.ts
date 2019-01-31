@@ -6,7 +6,9 @@ export namespace pfs {
   export let readdir = util.promisify(fs.readdir);
   export let stat = util.promisify(fs.stat);
   export let lstat = util.promisify(fs.lstat);
-  export let copyFile = util.promisify(fs.copyFile)
+  export let copyFile = util.promisify(fs.copyFile);
+  export let unlink = util.promisify(fs.unlink);
+  export let rename = util.promisify(fs.rename);
 }
 
 export abstract class Scanner {

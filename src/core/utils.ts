@@ -1,4 +1,4 @@
-import {SyncDir} from "./types";
+import {SyncDir, SyncFile} from "./types";
 import * as path from "path";
 
 export function totalSize(dir: SyncDir) {
@@ -37,4 +37,13 @@ export function deduplicatedTotalSize(dir: SyncDir) {
 
 export function makeFilePath(dirs: string[], name: string): string {
   return path.join(...dirs, name)
+}
+
+/**
+ * do not compare path
+ * */
+export function isFileSameContent(local: SyncFile, remote: SyncFile) {
+  return (local.size === remote.size)
+    && (local.crc32Hex === remote.crc32Hex)
+    && (!local.sha256Hex || !remote.sha256Hex || (local.sha256Hex === remote.sha256Hex))
 }

@@ -4,6 +4,12 @@ set -o pipefail
 if [ $# == 1 ]; then
   d="$1"
 else
+  mkdir -p res/server
+  cd res/server
+  ls > a.txt
+  md5sum * > b.txt
+  md5sum * > c.txt
+  cd ../../
   d="res/server"
 fi
 ts-node src/cli.ts server 8100 "$d" 2>server.error.log | tee server.out.log

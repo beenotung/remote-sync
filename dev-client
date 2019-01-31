@@ -4,6 +4,7 @@ set -o pipefail
 if [ $# == 1 ]; then
   d="$1"
 else
+  mkdir -p res/client
   d="res/client"
 fi
 ts-node src/cli.ts client 127.0.0.1 8100 "$d" 2>client.error.log | tee client.out.log
