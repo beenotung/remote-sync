@@ -14,6 +14,7 @@ export interface ListRootMsg {
 export interface RootListMsg {
   type: MsgType.root_list
   rootDir: SyncDir
+  rootpath: string[]
 }
 
 export interface RequestFileMsg {

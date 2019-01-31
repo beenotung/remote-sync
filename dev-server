@@ -4,6 +4,6 @@ set -o pipefail
 if [ $# == 1 ]; then
   d="$1"
 else
-  d="src"
+  d="res/server"
 fi
 ts-node src/cli.ts server 8100 "$d" 2>server.error.log | tee server.out.log

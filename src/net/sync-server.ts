@@ -6,6 +6,7 @@ import {SyncScanner} from "../core/sync-scanner";
 import {SyncFile} from "../core/types";
 import {makeFilePath} from "../core/utils";
 import * as fs from "fs";
+import {splitFilepath} from "../utils/path";
 
 export class SyncServer extends SyncSocket {
   constructor(public client: Socket, public scanner: SyncScanner) {
@@ -19,6 +20,7 @@ export class SyncServer extends SyncSocket {
         this.sendMsg({
           type: MsgType.root_list,
           rootDir: root,
+          rootpath: splitFilepath(this.scanner.rootpath),
         });
         break;
       }

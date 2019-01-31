@@ -6,12 +6,20 @@ import {SyncScanner} from "../core/sync-scanner";
 import * as fs from "fs";
 import {makeFilePath} from "../core/utils";
 import {SyncDir, SyncFile} from "../core/types";
+import {replaceRootPath, splitFilepath} from "../utils/path";
+import {inspect} from "util";
 
-function remoteFileToLocalFile(remote: SyncFile, rootpath: string): SyncFile {
-  let local = Object.assign({}, remote);
-  local.dirs = remote.dirs.map(x => x);
-  local.dirs[0] = rootpath;
-  return local;
+function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPaths: string[], localRootPaths: string[] }): SyncFile {
+  let {remoteFile} = args;
+  let localFile = Object.assign({}, remoteFile);
+  // console.error(inspect({args, localFile}, {depth: 99}));
+  localFile.dirs = replaceRootPath({
+    filepaths: remoteFile.dirs,
+    localpaths: args.localRootPaths,
+    remotepaths: args.remoteRootPaths
+  });
+  // console.error(inspect({args, localFile}, {depth: 99}));
+  return localFile;
 }
 
 export class SyncClient extends SyncSocket {
@@ -38,13 +46,18 @@ export class SyncClient extends SyncSocket {
         let f = (remoteDir: SyncDir) => {
           remoteDir.files.forEach(remoteFile => {
             this.msgIdCounter++;
+            let localFile = remoteFileToLocalFile({
+              remoteFile,
+              localRootPaths: splitFilepath(this.scanner.rootpath),
+              remoteRootPaths: msg.rootpath,
+            });
             this.sendFileRequest({
               type: MsgType.request_file,
               id: this.msgIdCounter.toString(16),
               by: "path",
               dirs: remoteFile.dirs,
               name: remoteFile.name,
-            }, [remoteFileToLocalFile(remoteFile, localRootDir.dirs[0])])
+            }, [localFile])
           });
           remoteDir.subDirs.forEach(dir => f(dir));
         };
@@ -61,7 +74,7 @@ export class SyncClient extends SyncSocket {
   }
 
   sendFileRequest(msg: RequestFileMsg, files: SyncFile[]) {
-    console.log('request file:', msg);
+    // console.log('request file:', msg);
     this.pendingFileRequests.set(msg.id, msg);
     this.pendingFiles.set(msg.id, files);
     this.sendMsg(msg)
@@ -72,7 +85,6 @@ export class SyncClient extends SyncSocket {
   }
 
   async receiveFile(msg: ProvideFileMsg) {
-    console.log('receive file:', msg);
     return new Promise((resolve, reject) => {
       let server = new net.Socket()
         .on('error', err => {
@@ -81,6 +93,7 @@ export class SyncClient extends SyncSocket {
         })
         .connect({host: this.server.remoteAddress, port: msg.port}, () => {
           let files = this.getDestFile(msg.reqId);
+          console.log('receive file:', {msg, files});
           if (files.length === 0) {
             server.end();
             resolve();
@@ -88,6 +101,7 @@ export class SyncClient extends SyncSocket {
           }
           let file = files.pop();
           let filepath = makeFilePath(file.dirs, file.name);
+          console.log('filepath:', filepath);
           server.pipe(fs.createWriteStream(filepath))
             .on("close", () => {
               server.end();

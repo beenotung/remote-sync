@@ -3,7 +3,6 @@ import * as path from "path";
 import {SyncDir, SyncFile} from "./types";
 import {hashFile, sha256File} from "../utils/hash-file";
 import {SyncFileIndex} from "./sync-file-index";
-import * as fs from "fs";
 
 export function makeHashKey(file: SyncFile) {
   return [
