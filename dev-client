@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+set -o pipefail
+ts-node src/cli.ts client 127.0.0.1 8100 dist 2>client.error.log | tee client.out.log

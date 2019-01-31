@@ -1,19 +1,44 @@
-import {Scanner} from "./scanner";
+import {Scanner} from "../utils/scanner";
 import * as path from "path";
-import {SyncDir, SyncFile} from "./model";
-import {crc32File, sha256File} from "./crc32-file";
+import {SyncDir, SyncFile} from "./types";
+import {hashFile, sha256File} from "../utils/hash-file";
+import {SyncFileIndex} from "./sync-file-index";
+import * as fs from "fs";
+
+export function makeHashKey(file: SyncFile) {
+  return [
+    file.size,
+    file.crc32Hex,
+    file.name
+  ].join(':')
+}
 
 export class SyncScanner extends Scanner {
   dirMap = new Map<string, SyncDir>();
   fileMap = new Map<string, SyncFile>();
   crc32Map = new Map<string, SyncFile[]>();
   verbose = false;
-  sha256HashingFiles = new Map<SyncFile, Promise<string>>();
+  /* HashKey -> sha256Hex */
+  hashCache = new Map<string, Promise<string>>();
+  rootpath: string;
+  index: SyncFileIndex = new SyncFileIndex();
+
+  getRootDir(): SyncDir {
+    return this.dirMap.get(this.rootpath)
+  }
 
   log(...args) {
     if (this.verbose) {
       console.log(...args);
     }
+  }
+
+  async scanPath(filepath: string) {
+    this.rootpath = filepath;
+    await super.scanPath(filepath);
+    let files = Array.from(this.fileMap.values());
+    // fs.writeFileSync('files.json', JSON.stringify(files));
+    this.index.build(files);
   }
 
   async onScanDir(dirs: string[]): Promise<any> {
@@ -38,7 +63,7 @@ export class SyncScanner extends Scanner {
     let dirpath = path.join(...dirs);
     let filepath = path.join(dirpath, name);
     // this.log('scanning file:', filepath);
-    let crc32Hex = (await crc32File(filepath)).toString('hex');
+    let crc32Hex = (await hashFile(filepath)).toString('hex');
     let file: SyncFile = {
       dirs,
       name,
@@ -68,7 +93,7 @@ export class SyncScanner extends Scanner {
     for (let previous of crc32Files) {
       if (previous === last) {
         // last one
-        await this.calcSha256(previous);
+        await this.calcSha256(last);
         return
       }
       if ((previous.size === last.size)
@@ -77,7 +102,7 @@ export class SyncScanner extends Scanner {
         if (previous.sha256Hex) {
           last.sha256Hex = previous.sha256Hex;
         } else {
-          last.sha256Hex = await this.calcSha256(previous);
+          await this.calcSha256(last);
         }
         return;
       }
@@ -86,14 +111,14 @@ export class SyncScanner extends Scanner {
 
 
   async calcSha256(file: SyncFile) {
-    if (!this.sha256HashingFiles.has(file)) {
-      this.sha256HashingFiles.set(file, (async () => {
-        let filepath = path.join(...file.dirs, file.name);
-        let sha256 = await sha256File(filepath);
-        file.sha256Hex = sha256.toString('hex');
-        return file.sha256Hex;
-      })());
+    let hashKey = makeHashKey(file);
+    if (!this.hashCache.has(hashKey)) {
+      let filepath = path.join(...file.dirs, file.name);
+      this.hashCache.set(hashKey, sha256File(filepath)
+        .then(b => b.toString('hex')))
     }
-    return this.sha256HashingFiles.get(file);
+    return this.hashCache.get(hashKey)
+      .then(hex => file.sha256Hex = hex)
+      ;
   }
 }
