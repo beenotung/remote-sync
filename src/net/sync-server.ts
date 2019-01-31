@@ -41,14 +41,19 @@ export class SyncServer extends SyncSocket {
   }
 
   async sendFile(file: SyncFile): Promise<number> {
+    // console.log('sendFile:', file);
     return new Promise<number>((resolve, reject) => {
-      let server = net.createServer(socket => {
-        socket
-          .on("connect", () => {
+      let server = net.createServer(client => {
+        client
+          .once('data', () => {
             let filepath = makeFilePath(file.dirs, file.name);
+            // console.log('sending file to client:', filepath);
             fs.createReadStream(filepath)
-              .pipe(socket, {end: true})
-              .on("close", () => server.close())
+              .pipe(client, {end: true})
+              .on("close", () => {
+                // console.log('finished sending file to client:', filepath);
+                return server.close();
+              })
           })
           .on("error", err => reject(err))
       })

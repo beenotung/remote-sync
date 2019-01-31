@@ -7,7 +7,7 @@ import * as fs from "fs";
 import {makeFilePath} from "../core/utils";
 import {SyncDir, SyncFile} from "../core/types";
 import {replaceRootPath, splitFilepath} from "../utils/path";
-import {inspect} from "util";
+import {pfs} from "../utils/scanner";
 
 function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPaths: string[], localRootPaths: string[] }): SyncFile {
   let {remoteFile} = args;
@@ -39,7 +39,7 @@ export class SyncClient extends SyncSocket {
   async onMsg(msg: Msg) {
     switch (msg.type) {
       case MsgType.root_list: {
-        console.log('received root list:', msg.rootDir);
+        // console.log('received root list:', msg.rootDir);
         // TODO calc minimal transfer and edit path, then request files
         let remoteRootDir = msg.rootDir;
         let localRootDir = this.scanner.getRootDir();
@@ -92,8 +92,9 @@ export class SyncClient extends SyncSocket {
           reject(err);
         })
         .connect({host: this.server.remoteAddress, port: msg.port}, () => {
+          server.write('start\n');
           let files = this.getDestFile(msg.reqId);
-          console.log('receive file:', {msg, files});
+          // console.log('receive file:', {msg, files});
           if (files.length === 0) {
             server.end();
             resolve();
@@ -101,12 +102,13 @@ export class SyncClient extends SyncSocket {
           }
           let file = files.pop();
           let filepath = makeFilePath(file.dirs, file.name);
-          console.log('filepath:', filepath);
+          // console.log('filepath:', filepath);
           server.pipe(fs.createWriteStream(filepath))
-            .on("close", () => {
+            .on("close", async () => {
+              // console.log('finished download file to:', filepath);
               server.end();
+              await Promise.all(files.map(otherFile => pfs.copyFile(filepath, makeFilePath(otherFile.dirs, otherFile.name))));
               resolve();
-              // TODO copy to other needed files
             })
         })
     })
