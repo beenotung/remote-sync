@@ -76,7 +76,10 @@ export class SyncScanner extends Scanner {
     if (this.hasCrc32(crc32Hex)) {
       let crcFiles = this.crc32Map.get(crc32Hex);
       crcFiles.push(file);
-      this.log('duplicated crc32 on:', new Set(crcFiles.map(file => file.name)));
+      let names = new Set(crcFiles.map(file => file.name));
+      if (names.size > 1) {
+        this.log('duplicated crc32 on:', names);
+      }
       await this.handleDuplicatedCrc32(crcFiles);
     } else {
       this.crc32Map.set(crc32Hex, [file]);
@@ -97,7 +100,7 @@ export class SyncScanner extends Scanner {
       }
       if ((previous.size === last.size)
         && (previous.name === last.name)) {
-        this.log('skip sha256 check on', last.name);
+        // this.log('skip sha256 check on', last.name);
         if (previous.sha256Hex) {
           last.sha256Hex = previous.sha256Hex;
         } else {

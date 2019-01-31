@@ -8,6 +8,7 @@ import {makeFilePath} from "../core/utils";
 import {SyncDir, SyncFile} from "../core/types";
 import {replaceRootPath, splitFilepath} from "../utils/path";
 import {pfs} from "../utils/scanner";
+import {fsTaskPool} from "../utils/values";
 
 function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPaths: string[], localRootPaths: string[] }): SyncFile {
   let {remoteFile} = args;
@@ -85,32 +86,33 @@ export class SyncClient extends SyncSocket {
   }
 
   async receiveFile(msg: ProvideFileMsg) {
-    return new Promise((resolve, reject) => {
-      let server = new net.Socket()
-        .on('error', err => {
-          server.end();
-          reject(err);
-        })
-        .connect({host: this.server.remoteAddress, port: msg.port}, () => {
-          server.write('start\n');
-          let files = this.getDestFile(msg.reqId);
-          // console.log('receive file:', {msg, files});
-          if (files.length === 0) {
+    return fsTaskPool.queue(() => new Promise((resolve, reject) => {
+        let server = new net.Socket()
+          .on('error', err => {
             server.end();
-            resolve();
-            return;
-          }
-          let file = files.pop();
-          let filepath = makeFilePath(file.dirs, file.name);
-          // console.log('filepath:', filepath);
-          server.pipe(fs.createWriteStream(filepath))
-            .on("close", async () => {
-              // console.log('finished download file to:', filepath);
+            reject(err);
+          })
+          .connect({host: this.server.remoteAddress, port: msg.port}, () => {
+            server.write('start\n');
+            let files = this.getDestFile(msg.reqId);
+            // console.log('receive file:', {msg, files});
+            if (files.length === 0) {
               server.end();
-              await Promise.all(files.map(otherFile => pfs.copyFile(filepath, makeFilePath(otherFile.dirs, otherFile.name))));
               resolve();
-            })
-        })
-    })
+              return;
+            }
+            let file = files.pop();
+            let filepath = makeFilePath(file.dirs, file.name);
+            // console.log('filepath:', filepath);
+            server.pipe(fs.createWriteStream(filepath))
+              .on("close", async () => {
+                // console.log('finished download file to:', filepath);
+                server.end();
+                await Promise.all(files.map(otherFile => pfs.copyFile(filepath, makeFilePath(otherFile.dirs, otherFile.name))));
+                resolve();
+              })
+          })
+      }
+    ));
   }
 }

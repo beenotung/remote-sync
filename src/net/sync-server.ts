@@ -7,6 +7,7 @@ import {SyncFile} from "../core/types";
 import {makeFilePath} from "../core/utils";
 import * as fs from "fs";
 import {splitFilepath} from "../utils/path";
+import {fsTaskPool} from "../utils/values";
 
 export class SyncServer extends SyncSocket {
   constructor(public client: Socket, public scanner: SyncScanner) {
@@ -42,25 +43,26 @@ export class SyncServer extends SyncSocket {
 
   async sendFile(file: SyncFile): Promise<number> {
     // console.log('sendFile:', file);
-    return new Promise<number>((resolve, reject) => {
-      let server = net.createServer(client => {
-        client
-          .once('data', () => {
-            let filepath = makeFilePath(file.dirs, file.name);
-            // console.log('sending file to client:', filepath);
-            fs.createReadStream(filepath)
-              .pipe(client, {end: true})
-              .on("close", () => {
-                // console.log('finished sending file to client:', filepath);
-                return server.close();
-              })
-          })
-          .on("error", err => reject(err))
-      })
-        .on("error", err => reject(err))
-        .listen(() => {
-          resolve(server.address().port)
+    return fsTaskPool.queue(() => new Promise<number>((resolve, reject) => {
+        let server = net.createServer(client => {
+          client
+            .once('data', () => {
+              let filepath = makeFilePath(file.dirs, file.name);
+              // console.log('sending file to client:', filepath);
+              fs.createReadStream(filepath)
+                .pipe(client, {end: true})
+                .on("close", () => {
+                  // console.log('finished sending file to client:', filepath);
+                  return server.close();
+                })
+            })
+            .on("error", err => reject(err))
         })
-    })
+          .on("error", err => reject(err))
+          .listen(() => {
+            resolve(server.address().port)
+          })
+      }
+    ));
   }
 }
