@@ -1,7 +1,8 @@
-import {splitFilepath} from "../src/utils/path";
+import {correctFilepath, splitFilepath} from "../src/utils/path";
 
 function test(s) {
-  console.log(s, splitFilepath(s))
+  console.log(s, splitFilepath(s));
+  console.log('corrected:', correctFilepath(s))
 }
 
 test('./res/server/c');

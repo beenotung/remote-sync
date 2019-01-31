@@ -6,9 +6,10 @@ import {SyncScanner} from "../core/sync-scanner";
 import * as fs from "fs";
 import {makeFilePath} from "../core/utils";
 import {SyncFile} from "../core/types";
-import {pfs} from "../utils/scanner";
 import {fsTaskPool} from "../utils/values";
 import {plan} from "../core/sync-planner";
+import * as path from "path";
+import {pfs} from "../utils/pfs";
 
 
 export class SyncClient extends SyncSocket {
@@ -83,7 +84,7 @@ export class SyncClient extends SyncSocket {
             server.end();
             reject(err);
           })
-          .connect({host: this.server.remoteAddress, port: msg.port}, () => {
+          .connect({host: this.server.remoteAddress, port: msg.port}, async () => {
             server.write('start\n');
             let files = this.getDestFile(msg.reqId);
             // console.log('receive file:', {msg, files});
@@ -95,6 +96,7 @@ export class SyncClient extends SyncSocket {
             let file = files.pop();
             let filepath = makeFilePath(file.dirs, file.name);
             // console.log('filepath:', filepath);
+            await pfs.mkdir_p(path.join(...file.dirs));
             server.pipe(fs.createWriteStream(filepath))
               .on("close", async () => {
                 // console.log('finished download file to:', filepath);

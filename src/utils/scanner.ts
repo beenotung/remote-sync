@@ -1,15 +1,6 @@
-import * as fs from "fs";
-import * as util from "util";
 import * as path from "path";
+import {pfs} from "./pfs";
 
-export namespace pfs {
-  export let readdir = util.promisify(fs.readdir);
-  export let stat = util.promisify(fs.stat);
-  export let lstat = util.promisify(fs.lstat);
-  export let copyFile = util.promisify(fs.copyFile);
-  export let unlink = util.promisify(fs.unlink);
-  export let rename = util.promisify(fs.rename);
-}
 
 export abstract class Scanner {
   abstract async onScanDir(dirs: string[])
@@ -40,7 +31,11 @@ export abstract class Scanner {
   async scanPath(filepath: string) {
     let dir = path.dirname(filepath);
     let name = path.basename(filepath);
-    await this.scanFile([dir], name);
+    if (dir === '.') {
+      await this.scanFile([], name);
+    } else {
+      await this.scanFile([dir], name);
+    }
   }
 }
 

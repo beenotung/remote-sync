@@ -6,9 +6,11 @@ if [ $# == 1 ]; then
 else
   mkdir -p res/server
   cd res/server
+  rm -rf empty
   ls > a.txt
   md5sum * > b.txt
   md5sum * > c.txt
+  mkdir empty
   cd ../../
   d="res/server"
 fi

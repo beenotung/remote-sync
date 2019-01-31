@@ -2,10 +2,12 @@ import {SyncClient} from "../net/sync-client";
 import {RootListMsg} from "../net/types";
 import {SyncFileIndex} from "./sync-file-index";
 import {SyncScanner} from "./sync-scanner";
-import {SyncFile} from "./types";
+import {SyncDir, SyncFile} from "./types";
 import {replaceRemotePathToLocalPath, sameRemotePathLocalPath, splitFilepath} from "../utils/path";
-import {pfs} from "../utils/scanner";
 import {makeFilePath} from "./utils";
+import {pfs} from "../utils/pfs";
+import * as path from "path";
+import {inspect} from "util";
 
 export function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPaths: string[], localRootPaths: string[] }): SyncFile {
   let {remoteFile, localRootPaths, remoteRootPaths} = args;
@@ -25,7 +27,7 @@ export function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPa
  *
  * current: download if needed,
  *          then copy if needed,
- *          then delete if needed
+ *          then delete if needed (also create empty folder)
  *
  * TODO combine copy+delete into move
  * TODO calc minimal transfer and edit path, then request files
@@ -56,8 +58,13 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
     // let destFile = remoteToLocal(remoteFile);
     let src = makeFilePath(localFile.dirs, localFile.name);
     let dest = makeFilePath(localDestFile.dirs, localDestFile.name);
+    // console.log('copy', {src, dest});
+    if (src === dest) {
+      return
+    }
     localIndex.pathMap.set(dest, localDestFile);
     // localIndex.pathMap.set(dest, localIndex.pathMap.get(src));
+    await pfs.mkdir_p(path.join(...localFile.dirs));
     await pfs.copyFile(src, dest);
   }
 
@@ -91,6 +98,8 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
       let remoteFiles = remoteIndex.getFilesByDesc(remoteFile);
       let localFiles = remoteFiles.map(file => remoteToLocal(file));
       downloadFile(remoteFile, localFiles)
+    } else {
+      // console.log('no need, remote:', remoteFile);
     }
   };
   Array.from(remoteIndex.sha256HexMap.values()).forEach(file => checkFileDownload(file));
@@ -123,7 +132,47 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
     if (!needKeep(localFile)) {
       return deleteFile(localFile);
     }
-  })
+  });
+  let deleteSyncFile = async (f: SyncFile) => {
+    let filepath = makeFilePath(f.dirs, f.name);
+    localIndex.pathMap.delete(filepath);
+    await pfs.unlink(filepath)
+  };
+  let deleteSyncDir = async (dir: SyncDir) => {
+    await Promise.all(dir.files.map(file => deleteSyncFile(file)));
+    await Promise.all(dir.subDirs.map(dir => deleteSyncDir(dir)));
+    let filepath = path.join(...dir.dirs);
+    await pfs.rmdir(filepath);
+  };
+  let checkDeleteDir = async (local: SyncDir, remote: SyncDir) => {
+    await Promise.all(local.files.map(lFile => {
+      // console.log({lFile, local, remote});
+      if (remote.files.every(rFile => rFile.name !== lFile.name)) {
+        return deleteSyncFile(lFile)
+      }
+    }));
+    // console.log({lSub: local.subDirs, rSub: remote.subDirs});
+    await Promise.all(local.subDirs.map(sub => {
+      let name = sub.dirs[sub.dirs.length - 1];
+      console.log(inspect({lName: name, rSub: remote.subDirs}, {depth: 3}));
+      if (remote.subDirs.every(sub => sub.dirs[sub.dirs.length - 1] !== name)) {
+        // console.log('delete sub:', sub);
+        return deleteSyncDir(sub);
+      }
+    }));
+    remote.subDirs.map(sub => {
+      let name = sub.dirs[sub.dirs.length - 1];
+      if (local.subDirs.every(sub => name !== sub.dirs[sub.dirs.length - 1])) {
+        let pathname = path.join(...local.dirs, name);
+        // console.log('mkdir:', pathname);
+        pfs.mkdir(pathname)
+      }
+    })
+    // console.log(inspect({local, remote}, {depth: 4}));
+    // console.error('WIP');
+    // process.exit(1);
+  };
+  checkDeleteDir(scanner.getRootDir(), msg.rootDir);
 
   // update local index?
 }

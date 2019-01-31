@@ -45,6 +45,9 @@ export function replaceRemotePathToLocalPath(args: { remoteFilePaths: string[], 
     let relativePaths = remoteFilePaths.slice(remoteRootPaths.length);
     return [...localRootPaths, ...relativePaths]
   } else {
+    console.error('why not relative?');
+    console.error({args});
+    process.exit(1);
     return [...remoteFilePaths]
   }
 }
