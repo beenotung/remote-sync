@@ -1,6 +1,6 @@
 {
   "name": "@beenotung/remote-sync",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "sync folder over network",
   "keywords": [],
   "author": "Beeno Tung <aabbcc1241@yahoo.com.hk> (https://beeno-tung.surge.sh)",
