@@ -38,6 +38,8 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
   let localIndex = scanner.index;
   let remoteIndex = new SyncFileIndex();
   remoteIndex.buildFromRootDir(msg.rootDir);
+  console.log('number of remote file:', remoteIndex.pathMap.size);
+  console.log('number of local file:', localIndex.pathMap.size);
 
   function remoteToLocal(remoteFile: SyncFile) {
     return remoteFileToLocalFile({remoteFile, remoteRootPaths, localRootPaths})

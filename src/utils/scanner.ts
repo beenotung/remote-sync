@@ -1,5 +1,6 @@
 import * as path from "path";
 import {pfs} from "./pfs";
+import {splitFilepath} from "./path";
 
 
 export abstract class Scanner {
@@ -34,7 +35,7 @@ export abstract class Scanner {
     if (dir === '.') {
       await this.scanFile([], name);
     } else {
-      await this.scanFile([dir], name);
+      await this.scanFile(splitFilepath(dir), name);
     }
   }
 }

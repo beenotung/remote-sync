@@ -46,16 +46,21 @@ export class SyncServer extends SyncSocket {
     return fsTaskPool.queue(() => new Promise<number>((resolve, reject) => {
         let server = net.createServer(client => {
           client
-            .once('data', () => {
+            .once('data', () => fsTaskPool.queue(() => new Promise((resolve1, reject1) => {
               let filepath = makeFilePath(file.dirs, file.name);
               // console.log('sending file to client:', filepath);
               fs.createReadStream(filepath)
                 .pipe(client, {end: true})
+                .on("error", err => {
+                  reject1(err);
+                  server.close();
+                })
                 .on("close", () => {
                   // console.log('finished sending file to client:', filepath);
-                  return server.close();
+                  resolve1();
+                  server.close();
                 })
-            })
+            })))
             .on("error", err => reject(err))
         })
           .on("error", err => reject(err))

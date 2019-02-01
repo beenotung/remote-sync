@@ -78,11 +78,20 @@ export async function main_client(host: string, port: string, rootpath: string) 
   console.log('starting client');
   let scanner = await scanRoot(rootpath);
   console.log(`connecting to ${host}:${port}`);
+  let connected = false;
   let server = new net.Socket()
     .on('data', data => syncClient.onData(data))
     .on('error', err => console.error('socket error:', err))
-    .on('close', () => console.log('closed'))
+    .on('close', () => {
+      if (!connected) {
+        console.log('Failed to connect to server.');
+        console.log('If you are sure the server is running, and finished scanning, check the hostname and network availability.');
+      } else {
+        console.log('socket closed');
+      }
+    })
     .connect({host, port: +port}, () => {
+      connected = true;
       console.log(`connected to ${host}:${port}`);
       syncClient.onConnected();
     })

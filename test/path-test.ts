@@ -8,3 +8,6 @@ function test(s) {
 test('./res/server/c');
 test('res/server/c');
 test('/res/server/c');
+
+test('/');
+test('/root');
