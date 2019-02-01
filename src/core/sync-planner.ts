@@ -4,7 +4,7 @@ import {SyncFileIndex} from "./sync-file-index";
 import {SyncScanner} from "./sync-scanner";
 import {SyncDir, SyncFile} from "./types";
 import {replaceRemotePathToLocalPath, sameRemotePathLocalPath, splitFilepath} from "../utils/path";
-import {makeFilePath} from "./utils";
+import {makeFilePath, totalSize} from "./utils";
 import {pfs} from "../utils/pfs";
 import * as path from "path";
 
@@ -36,10 +36,13 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
   let remoteRootPaths = msg.rootpath;
 
   let localIndex = scanner.index;
-  let remoteIndex = new SyncFileIndex();
+  let remoteIndex = syncClient.remoteIndex = new SyncFileIndex();
   remoteIndex.buildFromRootDir(msg.rootDir);
+  syncClient.remoteTotalSize = totalSize(msg.rootDir);
   console.log('number of remote file:', remoteIndex.pathMap.size);
   console.log('number of local file:', localIndex.pathMap.size);
+  syncClient.localRootDir = scanner.getRootDir();
+  syncClient.report();
 
   function remoteToLocal(remoteFile: SyncFile) {
     return remoteFileToLocalFile({remoteFile, remoteRootPaths, localRootPaths})

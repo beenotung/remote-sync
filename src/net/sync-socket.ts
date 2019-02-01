@@ -17,7 +17,7 @@ export abstract class SyncSocket {
       let idx = this.accText.indexOf('\n');
       if (idx === -1) {
         if (this.accText.length !== 0) {
-          console.log('maybe the message is chucked, acc message length:', this.accText.length);
+          console.error('maybe the message is chucked, acc message length:', this.accText.length);
         }
         return
       }

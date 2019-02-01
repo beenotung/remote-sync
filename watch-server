@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+set -o pipefail
+watch head -n 25 server.error.log

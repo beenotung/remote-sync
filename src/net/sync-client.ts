@@ -4,12 +4,14 @@ import {SyncSocket} from "./sync-socket";
 import {Msg, MsgType, ProvideFileMsg, RequestFileMsg} from "./types";
 import {SyncScanner} from "../core/sync-scanner";
 import * as fs from "fs";
-import {makeFilePath} from "../core/utils";
-import {SyncFile} from "../core/types";
+import {makeFilePath, totalSize} from "../core/utils";
+import {SyncDir, SyncFile} from "../core/types";
 import {fsTaskPool} from "../utils/values";
 import {plan} from "../core/sync-planner";
 import * as path from "path";
 import {pfs} from "../utils/pfs";
+import {SyncFileIndex} from "../core/sync-file-index";
+import {formatFloat} from "../utils/format";
 
 
 export class SyncClient extends SyncSocket {
@@ -17,6 +19,11 @@ export class SyncClient extends SyncSocket {
   pendingFiles = new Map<string, SyncFile[]>();
 
   msgIdCounter = 0;
+
+  // for progress report
+  remoteIndex: SyncFileIndex;
+  remoteTotalSize: number;
+  localRootDir: SyncDir;
 
   constructor(public server: Socket, public scanner: SyncScanner) {
     super(server)
@@ -35,6 +42,7 @@ export class SyncClient extends SyncSocket {
         break;
       }
       case MsgType.provide_file: {
+        this.checkAllDone();
         await this.receiveFile(msg);
         this.pendingFiles.delete(msg.reqId);
         this.checkAllDone();
@@ -116,9 +124,18 @@ export class SyncClient extends SyncSocket {
 
   checkAllDone() {
     if (this.pendingFiles.size === 0) {
+      console.log();
       console.log('all files are downloaded');
-      // TODO check to delete extra files
       this.server.end();
+    } else {
+      this.report();
     }
+  }
+
+  report() {
+    let localTotalSize = totalSize(this.localRootDir);
+    let p = formatFloat(localTotalSize / this.remoteTotalSize * 100) + '%';
+    let size = formatFloat(localTotalSize / 1024 / 1024) + 'MB';
+    process.stdout.write(`\r  downloading ${this.pendingFiles.size} files | total size: ${localTotalSize}/${this.remoteTotalSize} (${size}, ${p})`);
   }
 }
