@@ -1,4 +1,23 @@
+# dev folders
+node_modules
+res
+test
 
+# dev config
 .idea/
 tsconfig.json
 tslint.json
+.editorconfig
+.prettierrc
+
+# dev files
+watch-client
+watch-server
+dev-client
+dev-server
+
+# log files
+client.error.log
+client.out.log
+server.error.log
+server.out.log

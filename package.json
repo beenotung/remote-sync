@@ -1,13 +1,9 @@
 {
   "name": "remote-sync",
   "version": "1.0.0",
-  "description": "",
+  "description": "sync folder over network",
   "keywords": [],
-  "author": {
-    "name": "Beeno Tung",
-    "email": "aabbcc1241@yahoo.com.hk",
-    "url": "https://beeno-tung.surge.sh"
-  },
+  "author": "Beeno Tung <aabbcc1241@yahoo.com.hk> (https://beeno-tung.surge.sh)",
   "license": "BSD-2-Clause",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -36,9 +32,6 @@
       "pre-commit": "npm run format"
     }
   },
-  "directories": {
-    "test": "test"
-  },
   "devDependencies": {
     "@types/buffer-crc32": "^0.2.0",
     "@types/node": "^8.10.39",
@@ -54,5 +47,13 @@
   "dependencies": {
     "buffer-crc32": "^0.2.13",
     "mkdir-p": "0.0.7"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beenotung/remote-sync.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beenotung/remote-sync/issues"
+  },
+  "homepage": "https://github.com/beenotung/remote-sync#readme"
 }
