@@ -11,6 +11,9 @@
   "license": "BSD-2-Clause",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "remote-sync": "remote-sync.js"
+  },
   "scripts": {
     "test": "npm run rawtest",
     "clean": "rm -rf dist",
