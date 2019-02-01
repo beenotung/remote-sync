@@ -1,5 +1,5 @@
 {
-  "name": "remote-sync",
+  "name": "@beenotung/remote-sync",
   "version": "1.0.0",
   "description": "sync folder over network",
   "keywords": [],
