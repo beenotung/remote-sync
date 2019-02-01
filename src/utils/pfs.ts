@@ -1,19 +1,26 @@
 import * as util from "util";
 import * as fs from "fs";
+import {fsTaskPool} from "./values";
 
 let _mkdir_p = require('mkdir-p');
 // let rimraf = require('rimraf');
 
 export namespace pfs {
-  export let readdir = util.promisify(fs.readdir);
-  export let stat = util.promisify(fs.stat);
-  export let lstat = util.promisify(fs.lstat);
-  export let copyFile = util.promisify(fs.copyFile);
-  export let unlink = util.promisify(fs.unlink);
-  export let mkdir = util.promisify(fs.mkdir);
-  export let rmdir = util.promisify(fs.rmdir);
-  export let rename = util.promisify(fs.rename);
-  export let mkdir_p = util.promisify(_mkdir_p);
+
+  function wrap(f) {
+    f = util.promisify(f);
+    return (...args) => fsTaskPool.queue(() => f(...args))
+  }
+
+  export let readdir = wrap(fs.readdir);
+  export let stat = wrap(fs.stat);
+  export let lstat = wrap(fs.lstat);
+  export let copyFile = wrap(fs.copyFile);
+  export let unlink = wrap(fs.unlink);
+  export let mkdir = wrap(fs.mkdir);
+  export let rmdir = wrap(fs.rmdir);
+  export let rename = wrap(fs.rename);
+  export let mkdir_p = wrap(_mkdir_p);
 
   // export let rm_p = util.promisify(rimraf)
 
