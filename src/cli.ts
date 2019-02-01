@@ -3,7 +3,7 @@ import {genLogFilename, wrapConsoleLog} from "./utils/log";
 
 function help(code = 0) {
   let name = 'remote-sync';
-  console.log(name, 'v1.0.0');
+  console.log(name, 'v1.0.3');
   console.log('usage:', name, 'server <open-port> <local-path>');
   console.log('usage:', name, 'client <remote-host> <remote-port> <local-path>');
   process.exit(code);
