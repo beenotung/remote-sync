@@ -14,4 +14,5 @@ else
   cd ../../
   d="res/server"
 fi
-ts-node src/cli.ts server 8100 "$d" 2>server.error.log | tee server.out.log
+npm run build
+node remote-sync.js server 8100 "$d" 2>server.error.log | tee server.out.log

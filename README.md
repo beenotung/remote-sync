@@ -9,3 +9,5 @@ sync folder over network
 - assume under trusted network (most likely local network)
 - follows symbolic link
 
+## Todo
+- support copying relative and absolute symbolic link

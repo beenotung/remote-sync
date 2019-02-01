@@ -3,5 +3,10 @@ node_modules/
 package-lock.json
 dist/
 .cache/
+/res/
 /*.log
 /files.json
+/server.err.*.txt
+/server.out.*.txt
+/client.err.*.txt
+/client.out.*.txt

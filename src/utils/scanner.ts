@@ -1,7 +1,7 @@
 import * as path from "path";
 import {pfs} from "./pfs";
 import {splitFilepath} from "./path";
-
+import {Stats} from "fs";
 
 export abstract class Scanner {
   abstract async onScanDir(dirs: string[])
@@ -11,16 +11,37 @@ export abstract class Scanner {
   async scanDir(dirs: string[]) {
     let p = this.onScanDir(dirs);
     let dir = path.join(...dirs);
-    let files: string[] = await pfs.readdir(dir);
+    let files: string[] = await pfs.readdir(dir).catch(e => {
+      console.log('Failed to readdir on:', dir);
+      console.error(e);
+      process.exit(1);
+    });
     await Promise.all([p, ...files.map(name => this.scanFile(dirs, name))]);
   }
 
   async scanFile(dirs: string[], name: string) {
     let filepath = path.join(...dirs, name);
-    let stat = await pfs.stat(filepath);
+    let stat: Stats;
+    try {
+      stat = await pfs.lstat(filepath)
+    } catch (e) {
+      console.log('Failed to stat on:', filepath);
+      console.error(e);
+      process.exit(1);
+      return;
+    }
     if (stat.isSymbolicLink()) {
       console.warn('follow symbolic link:', filepath);
-      stat = await pfs.lstat(filepath)
+      try {
+        stat = await pfs.stat(filepath);
+      } catch (e) {
+        // console.log('Failed to lstat on:', filepath);
+        // console.error(e);
+        // process.exit(1);
+        // return;
+        console.warn('skip broken symbolic link:', filepath);
+        return;
+      }
     }
     if (stat.isDirectory()) {
       await this.scanDir([...dirs, name]);
