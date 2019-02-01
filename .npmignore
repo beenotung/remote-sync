@@ -21,3 +21,6 @@ client.error.log
 client.out.log
 server.error.log
 server.out.log
+
+# binary files
+/bin/
