@@ -14,5 +14,17 @@ export namespace pfs {
   export let rmdir = util.promisify(fs.rmdir);
   export let rename = util.promisify(fs.rename);
   export let mkdir_p = util.promisify(_mkdir_p);
+
   // export let rm_p = util.promisify(rimraf)
+
+  let mkdir_p_store = {};
+
+  export async function mkdir_p_once(filepath: string) {
+    let p = mkdir_p_store[filepath];
+    if (!p) {
+      // console.log('mkdir -p:', filepath);
+      p = mkdir_p_store[filepath] = mkdir_p(filepath);
+    }
+    return p;
+  }
 }

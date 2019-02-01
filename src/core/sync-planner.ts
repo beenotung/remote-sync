@@ -7,7 +7,6 @@ import {replaceRemotePathToLocalPath, sameRemotePathLocalPath, splitFilepath} fr
 import {makeFilePath} from "./utils";
 import {pfs} from "../utils/pfs";
 import * as path from "path";
-import {inspect} from "util";
 
 export function remoteFileToLocalFile(args: { remoteFile: SyncFile, remoteRootPaths: string[], localRootPaths: string[] }): SyncFile {
   let {remoteFile, localRootPaths, remoteRootPaths} = args;
@@ -64,7 +63,12 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
     }
     localIndex.pathMap.set(dest, localDestFile);
     // localIndex.pathMap.set(dest, localIndex.pathMap.get(src));
-    await pfs.mkdir_p(path.join(...localFile.dirs));
+    let destDir = path.join(...localDestFile.dirs);
+    // let destDir = path.dirname(dest);
+    // console.log('mkdir -p:', destDir);
+    // console.log('copyFile:', {src, dest, destDir});
+    await pfs.mkdir_p_once(destDir);
+    // console.log(`copy ${src} -> ${dest}`);
     await pfs.copyFile(src, dest);
   }
 
@@ -136,12 +140,14 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
   let deleteSyncFile = async (f: SyncFile) => {
     let filepath = makeFilePath(f.dirs, f.name);
     localIndex.pathMap.delete(filepath);
-    await pfs.unlink(filepath)
+    // console.log('delete:', filepath);
+    await pfs.unlink(filepath).catch(e => e);
   };
   let deleteSyncDir = async (dir: SyncDir) => {
     await Promise.all(dir.files.map(file => deleteSyncFile(file)));
     await Promise.all(dir.subDirs.map(dir => deleteSyncDir(dir)));
     let filepath = path.join(...dir.dirs);
+    localIndex.pathMap.delete(filepath);
     await pfs.rmdir(filepath);
   };
   let checkDeleteDir = async (local: SyncDir, remote: SyncDir) => {
@@ -154,25 +160,25 @@ export async function plan(syncClient: SyncClient, scanner: SyncScanner, msg: Ro
     // console.log({lSub: local.subDirs, rSub: remote.subDirs});
     await Promise.all(local.subDirs.map(sub => {
       let name = sub.dirs[sub.dirs.length - 1];
-      console.log(inspect({lName: name, rSub: remote.subDirs}, {depth: 3}));
+      // console.log(inspect({lName: name, rSub: remote.subDirs}, {depth: 3}));
       if (remote.subDirs.every(sub => sub.dirs[sub.dirs.length - 1] !== name)) {
         // console.log('delete sub:', sub);
         return deleteSyncDir(sub);
       }
     }));
-    remote.subDirs.map(sub => {
+    await Promise.all(remote.subDirs.map(sub => {
       let name = sub.dirs[sub.dirs.length - 1];
       if (local.subDirs.every(sub => name !== sub.dirs[sub.dirs.length - 1])) {
         let pathname = path.join(...local.dirs, name);
         // console.log('mkdir:', pathname);
-        pfs.mkdir(pathname)
+        return pfs.mkdir_p_once(pathname)
       }
-    })
+    }));
     // console.log(inspect({local, remote}, {depth: 4}));
     // console.error('WIP');
     // process.exit(1);
   };
-  checkDeleteDir(scanner.getRootDir(), msg.rootDir);
+  await checkDeleteDir(scanner.getRootDir(), msg.rootDir);
 
   // update local index?
 }

@@ -96,12 +96,17 @@ export class SyncClient extends SyncSocket {
             let file = files.pop();
             let filepath = makeFilePath(file.dirs, file.name);
             // console.log('filepath:', filepath);
-            await pfs.mkdir_p(path.join(...file.dirs));
+            await pfs.mkdir_p_once(path.join(...file.dirs));
             server.pipe(fs.createWriteStream(filepath))
               .on("close", async () => {
                 // console.log('finished download file to:', filepath);
                 server.end();
-                await Promise.all(files.map(otherFile => pfs.copyFile(filepath, makeFilePath(otherFile.dirs, otherFile.name))));
+                await Promise.all(files.map(async otherFile => {
+                  let otherFilePath = makeFilePath(otherFile.dirs, otherFile.name);
+                  let otherDirPath = path.join(...otherFile.dirs);
+                  await pfs.mkdir_p_once(otherDirPath);
+                  await pfs.copyFile(filepath, otherFilePath);
+                }));
                 resolve();
               })
           })
