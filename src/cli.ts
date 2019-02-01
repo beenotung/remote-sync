@@ -1,4 +1,5 @@
 import {main_client, main_server} from "./main";
+import {genLogFilename, wrapConsoleLog} from "./utils/log";
 
 function help(code = 0) {
   let name = 'remote-sync';
@@ -7,6 +8,7 @@ function help(code = 0) {
   console.log('usage:', name, 'client <remote-host> <remote-port> <local-path>');
   process.exit(code);
 }
+
 
 if (process.argv.length < 3) {
   help(0);
@@ -22,6 +24,7 @@ switch (mode) {
       help(1);
       break;
     }
+    wrapConsoleLog(genLogFilename('server.out'), genLogFilename('server.err'));
     main_server(process.argv[3], process.argv[4]);
     break;
   case 'client':
@@ -30,6 +33,7 @@ switch (mode) {
       help(1);
       break;
     }
+    wrapConsoleLog(genLogFilename('client.out'), genLogFilename('client.err'));
     main_client(process.argv[3], process.argv[4], process.argv[5]);
     break;
   default:
